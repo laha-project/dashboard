@@ -1,0 +1,308 @@
+<!-- new code: Vue3 + TailwindCSS + Countdown before auto-refresh -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gallery View Full Options</title>
+    <script src="https://unpkg.com/vue@3"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./config.js"></script>
+  </head>
+  <body class="bg-gray-100 py-8">
+    <div class="max-w-7xl mx-auto px-4" id="app">
+      <!-- Countdown timer -->
+      <div class="mb-2 text-sm text-gray-600">
+        Refreshing in: <span class="font-bold">{{ countdown }}</span> seconds
+      </div>
+
+      <!-- Search box -->
+      <div class="mb-4 flex items-center">
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search by content or draft..."
+          class="w-full border border-gray-300 rounded px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <!-- Loading indicator -->
+      <div v-if="loading" class="flex justify-center items-center mb-6">
+        <svg
+          class="animate-spin h-6 w-6 text-blue-500"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8H4z"
+          ></path>
+        </svg>
+        <span class="ml-2 text-blue-500">Loading...</span>
+      </div>
+
+      <!-- Items Grid -->
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div
+          v-for="item in paginatedItems"
+          :key="item.id"
+          class="bg-white shadow rounded p-4 flex flex-col transition duration-300 hover:shadow-lg"
+        >
+          <div class="flex-grow">
+            <h2 class="text-lg font-bold mb-2">ID: {{ item.id }}</h2>
+            <p class="text-gray-800 mb-2 whitespace-pre-line">
+              <strong>Content:</strong> {{ item.content || 'N/A' }}
+            </p>
+            <transition name="fade">
+              <p class="text-gray-600 whitespace-pre-line mb-2">
+                <strong>Draft:</strong>
+                <span v-if="isDraftExpanded[item.id]">
+                  {{ item.deepseek_draft || 'N/A' }}
+                </span>
+                <span v-else>
+                  {{ (item.deepseek_draft && item.deepseek_draft.length > 150) ?
+                  item.deepseek_draft.slice(0, 150) + '...' :
+                  (item.deepseek_draft || 'N/A') }}
+                </span>
+              </p>
+            </transition>
+            <div
+              v-if="item.deepseek_draft && item.deepseek_draft.length > 150"
+              class="mb-2"
+            >
+              <button
+                @click="toggleDraft(item.id)"
+                class="text-blue-500 text-sm hover:underline"
+              >
+                {{ isDraftExpanded[item.id] ? 'Show less' : 'Show more' }}
+              </button>
+            </div>
+          </div>
+          <div class="mt-4 flex space-x-2">
+            <button
+              @click="handleAction(item.id, 'approve')"
+              :disabled="actionLoading[item.id]"
+              class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex-1 font-semibold shadow disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span
+                v-if="actionLoading[item.id]"
+                class="flex justify-center items-center"
+              >
+                <svg
+                  class="animate-spin h-4 w-4 mr-1"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  ></path>
+                </svg>
+                Approving...
+              </span>
+              <span v-else>Approve</span>
+            </button>
+            <button
+              @click="handleAction(item.id, 'reject')"
+              :disabled="actionLoading[item.id]"
+              class="bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span
+                v-if="actionLoading[item.id]"
+                class="flex justify-center items-center"
+              >
+                <svg
+                  class="animate-spin h-4 w-4 mr-1"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  ></path>
+                </svg>
+                Rejecting...
+              </span>
+              <span v-else>Reject</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="totalPages > 1" class="flex justify-center mt-6 space-x-2">
+        <button
+          @click="changePage(currentPage - 1)"
+          :disabled="currentPage === 1"
+          class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <span class="px-3 py-1">{{ currentPage }} / {{ totalPages }}</span>
+        <button
+          @click="changePage(currentPage + 1)"
+          :disabled="currentPage === totalPages"
+          class="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const app = Vue.createApp({
+        data() {
+          return {
+            items: [],
+            loading: true,
+            isDraftExpanded: {},
+            actionLoading: {},
+            searchQuery: "",
+            autoRefreshInterval: null,
+            countdownInterval: null,
+            countdown: 5,
+            // Pagination
+            currentPage: 1,
+            itemsPerPage: 6,
+          };
+        },
+        computed: {
+          filteredItems() {
+            if (!this.searchQuery.trim()) return this.items;
+            const query = this.searchQuery.trim().toLowerCase();
+            return this.items.filter(
+              (item) =>
+                (item.content && item.content.toLowerCase().includes(query)) ||
+                (item.deepseek_draft &&
+                  item.deepseek_draft.toLowerCase().includes(query))
+            );
+          },
+          totalPages() {
+            return (
+              Math.ceil(this.filteredItems.length / this.itemsPerPage) || 1
+            );
+          },
+          paginatedItems() {
+            const start = (this.currentPage - 1) * this.itemsPerPage;
+            return this.filteredItems.slice(start, start + this.itemsPerPage);
+          },
+        },
+        methods: {
+          async fetchData() {
+            this.loading = true;
+            try {
+              const response = await fetch("/.netlify/functions/supabase");
+              this.items = await response.json();
+              this.resetStates();
+            } catch (error) {
+              console.error("Error fetching data:", error);
+            } finally {
+              this.loading = false;
+              this.resetCountdown();
+            }
+          },
+          resetStates() {
+            this.isDraftExpanded = {};
+            this.actionLoading = {};
+            this.items.forEach((item) => {
+              this.isDraftExpanded[item.id] = false;
+              this.actionLoading[item.id] = false;
+            });
+            this.currentPage = 1;
+          },
+          toggleDraft(id) {
+            this.isDraftExpanded[id] = !this.isDraftExpanded[id];
+          },
+          changePage(page) {
+            if (page >= 1 && page <= this.totalPages) {
+              this.currentPage = page;
+            }
+          },
+          async handleAction(id, action) {
+            this.actionLoading[id] = true;
+            try {
+              const response = await fetch(
+                `${CONFIG.SUPABASE_URL}?id=eq.${id}`,
+                {
+                  method: "PATCH",
+                  headers: {
+                    apikey: CONFIG.SUPABASE_KEY,
+                    Authorization: `Bearer ${CONFIG.SUPABASE_KEY}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ status: action }),
+                }
+              );
+              if (response.ok) {
+                console.log(`Item ${id} ${action}d successfully`);
+                await this.fetchData();
+              } else {
+                console.error(
+                  `Failed to ${action} item`,
+                  await response.text()
+                );
+              }
+            } catch (error) {
+              console.error("Error during action:", error);
+            } finally {
+              this.actionLoading[id] = false;
+            }
+          },
+          setupAutoRefresh() {
+            this.countdown = 5;
+            this.autoRefreshInterval = setInterval(() => {
+              this.fetchData();
+            }, 5000);
+            this.countdownInterval = setInterval(() => {
+              if (this.countdown > 0) {
+                this.countdown--;
+              }
+            }, 1000);
+          },
+          resetCountdown() {
+            this.countdown = 5;
+          },
+        },
+        mounted() {
+          this.fetchData();
+          this.setupAutoRefresh();
+        },
+        beforeUnmount() {
+          clearInterval(this.autoRefreshInterval);
+          clearInterval(this.countdownInterval);
+        },
+      });
+      app.mount("#app");
+    </script>
+  </body>
+</html>

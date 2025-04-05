@@ -1,0 +1,22 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Node / build system (sau này nếu dùng)
+node_modules/
+dist/
+build/
+
+# VSCode / IDE files
+.vscode/
+.idea/
+
+# Mac files
+*.DS_Store
+
+# Env / sensitive configs (nếu sau này có)
+.env
+config.local.js
+
+/node_modules
+/.netlify
