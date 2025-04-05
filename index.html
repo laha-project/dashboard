@@ -222,7 +222,7 @@
             this.loading = true;
             try {
               const response = await fetch(
-                `${CONFIG.SUPABASE_URL}?select=*&order=id.desc`,
+                `${CONFIG.SUPABASE_URL}?status=eq.pending&select=*`,
                 {
                   headers: {
                     apikey: CONFIG.SUPABASE_KEY,
@@ -230,9 +230,7 @@
                   },
                 }
               );
-              const data = await response.json();
-              console.log("Fetched data:", data);
-              this.items = data;
+              this.items = await response.json();
               this.resetStates();
             } catch (error) {
               console.error("Error fetching data:", error);
