@@ -251,27 +251,16 @@
           async handleAction(id, action) {
             this.actionLoading[id] = true;
             try {
-              const response = await fetch(
-                `${CONFIG.SUPABASE_URL}?id=eq.${id}`,
-                {
-                  method: "PATCH",
-                  headers: {
-                    apikey: CONFIG.SUPABASE_KEY,
-                    Authorization: `Bearer ${CONFIG.SUPABASE_KEY}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({ status: action }),
-                }
+              // Mở URL webhook như yêu cầu
+              window.open(
+                `https://n8n.gaolamthuy.vn/webhook/lamhao-project?status=${action}&edit_table_id=${id}`,
+                "_blank"
               );
-              if (response.ok) {
-                console.log(`Item ${id} ${action}d successfully`);
-                await this.fetchData();
-              } else {
-                console.error(
-                  `Failed to ${action} item`,
-                  await response.text()
-                );
-              }
+
+              // Sau khi mở URL, vẫn fetch data để update
+              const response = await fetch("/.netlify/functions/supabase");
+              this.items = await response.json();
+              this.resetStates();
             } catch (error) {
               console.error("Error during action:", error);
             } finally {
